@@ -1,9 +1,28 @@
 import React from "react";
 import { useNavigate } from "react-router-dom"; 
 import { Layout, Input, Button } from "../components/common";
+import { supabase } from "../lib/supabaseClient";
 
 const LoginPage = () => {
   const navigate = useNavigate(); 
+
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/main",
+        queryParams: {
+        access_type: 'offline',
+        prompt: 'select_account',
+        },
+      },
+    });
+
+    if (error) {
+      alert("로그인 중 에러가 발생했습니다: " + error.message);
+    }
+  };
+
   const handleLogin = () => {
     navigate("/main");
   };
@@ -23,9 +42,23 @@ const LoginPage = () => {
       </div>
 
       <div className="w-full flex flex-col gap-5">
+        <Button 
+          variant="outline" 
+          className="h-14 text-lg border-gray-200 flex items-center justify-center"
+          onClick={handleGoogleLogin}
+        >
+          <img 
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+            alt="Google" 
+            className="w-5 h-5 mr-3"
+          />
+          Google로 시작하기
+        </Button>
+
         <Button variant="outline" className="h-14 text-lg border-gray-200">
           <span className="mr-2 text-yellow-600">💬</span> 카카오톡으로 시작하기
         </Button>
+
         <div className="relative py-4">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-200"></div>
@@ -34,14 +67,17 @@ const LoginPage = () => {
             <span className="px-4 bg-[#F0F2FF] text-gray-400">또는</span>
           </div>
         </div>
+
         <Input label="이메일" placeholder="example@email.com" />
         <Input label="비밀번호" type="password" placeholder="••••••••" />
+        
         <Button 
           className="h-14 text-lg mt-2 bg-black hover:bg-gray-800"
           onClick={handleLogin} 
         >
           <span className="mr-2">✉️</span> 로그인
         </Button>
+
         <div className="text-center mt-4">
           <button 
             type="button"
