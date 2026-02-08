@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout, Button, Card } from "../components/common";
 import TodoItem from "../components/TodoItem";
+import { supabase } from "../lib/supabaseClient"; // Supabase 클라이언트 가져오기
 
 interface Todo {
   id: number;
   text: string;
   completed: boolean;
-  date: string; 
-  time: string; 
+  date: string;
+  time: string;
 }
 
 const MainPage = () => {
@@ -21,17 +22,79 @@ const MainPage = () => {
   const [activeTab, setActiveTab] = useState<'전체' | '진행중' | '완료'>('전체');
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
-  const handleAddTodo = () => {
+  // 1. 컴포넌트 로드 시 데이터 불러오기
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  const fetchTodos = async () => {
+    const { data, error } = await supabase
+      .from('todos') // Supabase에 만든 테이블 이름
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error) {
+      console.error("데이터 로드 실패:", error.message);
+    } else {
+      setTodos(data || []);
+    }
+  };
+
+  // 2. 할 일 추가 로직 (DB 저장)
+  const handleAddTodo = async () => {
     if (!inputValue.trim()) return;
-    const newTodo: Todo = {
-      id: Date.now(),
+
+    const newTodo = {
       text: inputValue,
       completed: false,
       date: selectedDate,
       time: selectedTime,
     };
-    setTodos([...todos, newTodo]);
-    setInputValue("");
+
+    const { data, error } = await supabase
+      .from('todos')
+      .insert([newTodo])
+      .select();
+
+    if (error) {
+      alert("저장 실패: " + error.message);
+    } else if (data) {
+      setTodos([data[0], ...todos]);
+      setInputValue("");
+    }
+  };
+
+  // 3. 완료 상태 변경 (DB 업데이트)
+  const handleToggle = async (id: number, completed: boolean) => {
+    const { error } = await supabase
+      .from('todos')
+      .update({ completed: !completed })
+      .eq('id', id);
+
+    if (error) alert("수정 실패: " + error.message);
+    else setTodos(todos.map(t => t.id === id ? { ...t, completed: !completed } : t));
+  };
+
+  // 4. 할 일 삭제 (DB 삭제)
+  const handleDelete = async (id: number) => {
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', id);
+
+    if (error) alert("삭제 실패: " + error.message);
+    else setTodos(todos.filter(t => t.id !== id));
+  };
+
+  // 5. 할 일 텍스트 수정 (DB 업데이트)
+  const handleUpdate = async (id: number, text: string) => {
+    const { error } = await supabase
+      .from('todos')
+      .update({ text })
+      .eq('id', id);
+
+    if (error) alert("수정 실패: " + error.message);
+    else setTodos(todos.map(t => t.id === id ? { ...t, text } : t));
   };
 
   const filteredTodos = todos.filter(t => {
@@ -39,6 +102,11 @@ const MainPage = () => {
     if (activeTab === '완료') return t.completed;
     return true;
   });
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
 
   return (
     <Layout maxWidth="70%">
@@ -49,7 +117,7 @@ const MainPage = () => {
           </svg>
         </div>
         <h1 className="text-4xl font-extrabold text-gray-900">할 일 목록</h1>
-        <Button variant="outline" size="sm" className="mt-4 bg-white" onClick={() => navigate("/")}>로그아웃</Button>
+        <Button variant="outline" size="sm" className="mt-4 bg-white" onClick={handleLogout}>로그아웃</Button>
       </div>
 
       <Card className="w-full p-8 mb-10 shadow-sm bg-white rounded-4xl">
@@ -113,9 +181,9 @@ const MainPage = () => {
               <TodoItem 
                 key={todo.id} 
                 todo={todo} 
-                onToggle={(id) => setTodos(todos.map(t => t.id === id ? {...t, completed: !t.completed} : t))}
-                onDelete={(id) => setTodos(todos.filter(t => t.id !== id))}
-                onUpdate={(id, text) => setTodos(todos.map(t => t.id === id ? {...t, text} : t))}
+                onToggle={(id) => handleToggle(id, todo.completed)}
+                onDelete={(id) => handleDelete(id)}
+                onUpdate={(id, text) => handleUpdate(id, text)}
               />
             ))
           ) : (
@@ -131,6 +199,7 @@ const MainPage = () => {
   );
 };
 
+// CalendarView 컴포넌트는 그대로 유지 (생략 가능하면 생략하셔도 됩니다)
 const CalendarView = ({ todos }: { todos: Todo[] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -162,7 +231,7 @@ const CalendarView = ({ todos }: { todos: Todo[] }) => {
         ))}
 
         {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-white min-h-30" />
+          <div key={`empty-${i}`} className="bg-white min-h-[120px]" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -176,7 +245,7 @@ const CalendarView = ({ todos }: { todos: Todo[] }) => {
           const isSaturday = dayOfWeek === 6;
 
           return (
-            <div key={i} className="bg-white min-h-30 p-2 border-t border-l border-gray-50 hover:bg-indigo-50/20 transition-all group">
+            <div key={i} className="bg-white min-h-[120px] p-2 border-t border-l border-gray-50 hover:bg-indigo-50/20 transition-all group">
               <span className={`text-sm font-bold inline-flex items-center justify-center w-7 h-7 rounded-full 
                 ${isToday ? 'bg-indigo-600 text-white shadow-md' : 
                   isSunday ? 'text-red-500' : 
