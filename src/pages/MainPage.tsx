@@ -162,7 +162,7 @@ const CalendarView = ({ todos }: { todos: Todo[] }) => {
         ))}
 
         {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-white min-h-[120px]" />
+          <div key={`empty-${i}`} className="bg-white min-h-30" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -176,7 +176,7 @@ const CalendarView = ({ todos }: { todos: Todo[] }) => {
           const isSaturday = dayOfWeek === 6;
 
           return (
-            <div key={i} className="bg-white min-h-[120px] p-2 border-t border-l border-gray-50 hover:bg-indigo-50/20 transition-all group">
+            <div key={i} className="bg-white min-h-30 p-2 border-t border-l border-gray-50 hover:bg-indigo-50/20 transition-all group">
               <span className={`text-sm font-bold inline-flex items-center justify-center w-7 h-7 rounded-full 
                 ${isToday ? 'bg-indigo-600 text-white shadow-md' : 
                   isSunday ? 'text-red-500' : 
