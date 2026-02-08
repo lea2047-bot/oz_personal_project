@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout, Button, Card } from "../components/common";
 import TodoItem from "../components/TodoItem";
-import { supabase } from "../lib/supabaseClient"; // Supabase 클라이언트 가져오기
+import { supabase } from "../lib/supabaseClient"; 
 
 interface Todo {
   id: number;
@@ -22,14 +22,13 @@ const MainPage = () => {
   const [activeTab, setActiveTab] = useState<'전체' | '진행중' | '완료'>('전체');
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
-  // 1. 컴포넌트 로드 시 데이터 불러오기
   useEffect(() => {
     fetchTodos();
   }, []);
 
   const fetchTodos = async () => {
     const { data, error } = await supabase
-      .from('todos') // Supabase에 만든 테이블 이름
+      .from('todos') 
       .select('*')
       .order('id', { ascending: false });
 
@@ -40,7 +39,6 @@ const MainPage = () => {
     }
   };
 
-  // 2. 할 일 추가 로직 (DB 저장)
   const handleAddTodo = async () => {
     if (!inputValue.trim()) return;
 
@@ -64,7 +62,6 @@ const MainPage = () => {
     }
   };
 
-  // 3. 완료 상태 변경 (DB 업데이트)
   const handleToggle = async (id: number, completed: boolean) => {
     const { error } = await supabase
       .from('todos')
@@ -75,7 +72,6 @@ const MainPage = () => {
     else setTodos(todos.map(t => t.id === id ? { ...t, completed: !completed } : t));
   };
 
-  // 4. 할 일 삭제 (DB 삭제)
   const handleDelete = async (id: number) => {
     const { error } = await supabase
       .from('todos')
@@ -86,7 +82,6 @@ const MainPage = () => {
     else setTodos(todos.filter(t => t.id !== id));
   };
 
-  // 5. 할 일 텍스트 수정 (DB 업데이트)
   const handleUpdate = async (id: number, text: string) => {
     const { error } = await supabase
       .from('todos')
@@ -199,7 +194,6 @@ const MainPage = () => {
   );
 };
 
-// CalendarView 컴포넌트는 그대로 유지 (생략 가능하면 생략하셔도 됩니다)
 const CalendarView = ({ todos }: { todos: Todo[] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
