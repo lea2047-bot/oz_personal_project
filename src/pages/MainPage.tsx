@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout, Button, Card } from "../components/common";
 import TodoItem from "../components/TodoItem";
+import { supabase } from "../lib/supabaseClient"; 
 
 interface Todo {
   id: number;
   text: string;
   completed: boolean;
-  date: string; 
-  time: string; 
+  date: string;
+  time: string;
 }
 
 const MainPage = () => {
@@ -20,18 +21,95 @@ const MainPage = () => {
   const [selectedTime, setSelectedTime] = useState("00:00");
   const [activeTab, setActiveTab] = useState<'전체' | '진행중' | '완료'>('전체');
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [loading, setLoading] = useState(true);
 
-  const handleAddTodo = () => {
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  const fetchTodos = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('todos')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+      setTodos(data || []);
+    } catch (error) {
+      console.error("데이터 로드 중 오류:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddTodo = async () => {
     if (!inputValue.trim()) return;
-    const newTodo: Todo = {
-      id: Date.now(),
+    
+    const newTodo = {
       text: inputValue,
       completed: false,
       date: selectedDate,
       time: selectedTime,
     };
-    setTodos([...todos, newTodo]);
-    setInputValue("");
+
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .insert([newTodo])
+        .select();
+
+      if (error) throw error;
+      if (data) {
+        setTodos([data[0], ...todos]);
+        setInputValue("");
+      }
+    } catch (error) {
+      alert("추가 실패: " + (error as Error).message);
+    }
+  };
+
+  const handleToggle = async (id: number, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed: !currentStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      setTodos(todos.map(t => t.id === id ? { ...t, completed: !currentStatus } : t));
+    } catch (error) {
+      alert("상태 변경 실패: " + (error as Error).message);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setTodos(todos.filter(t => t.id !== id));
+    } catch (error) {
+      alert("삭제 실패: " + (error as Error).message);
+    }
+  };
+
+  const handleUpdate = async (id: number, text: string) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ text })
+        .eq('id', id);
+
+      if (error) throw error;
+      setTodos(todos.map(t => t.id === id ? { ...t, text } : t));
+    } catch (error) {
+      alert("수정 실패: " + (error as Error).message);
+    }
   };
 
   const filteredTodos = todos.filter(t => {
@@ -39,6 +117,22 @@ const MainPage = () => {
     if (activeTab === '완료') return t.completed;
     return true;
   });
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex flex-col justify-center items-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-xl font-bold text-gray-600">데이터를 불러오는 중입니다...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout maxWidth="70%">
@@ -49,7 +143,7 @@ const MainPage = () => {
           </svg>
         </div>
         <h1 className="text-4xl font-extrabold text-gray-900">할 일 목록</h1>
-        <Button variant="outline" size="sm" className="mt-4 bg-white" onClick={() => navigate("/")}>로그아웃</Button>
+        <Button variant="outline" size="sm" className="mt-4 bg-white" onClick={handleLogout}>로그아웃</Button>
       </div>
 
       <Card className="w-full p-8 mb-10 shadow-sm bg-white rounded-4xl">
@@ -113,9 +207,9 @@ const MainPage = () => {
               <TodoItem 
                 key={todo.id} 
                 todo={todo} 
-                onToggle={(id) => setTodos(todos.map(t => t.id === id ? {...t, completed: !t.completed} : t))}
-                onDelete={(id) => setTodos(todos.filter(t => t.id !== id))}
-                onUpdate={(id, text) => setTodos(todos.map(t => t.id === id ? {...t, text} : t))}
+                onToggle={(id) => handleToggle(id, todo.completed)}
+                onDelete={(id) => handleDelete(id)}
+                onUpdate={(id, text) => handleUpdate(id, text)}
               />
             ))
           ) : (
@@ -162,7 +256,7 @@ const CalendarView = ({ todos }: { todos: Todo[] }) => {
         ))}
 
         {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-white min-h-30" />
+          <div key={`empty-${i}`} className="bg-white min-h-[120px]" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -176,7 +270,7 @@ const CalendarView = ({ todos }: { todos: Todo[] }) => {
           const isSaturday = dayOfWeek === 6;
 
           return (
-            <div key={i} className="bg-white min-h-30 p-2 border-t border-l border-gray-50 hover:bg-indigo-50/20 transition-all group">
+            <div key={i} className="bg-white min-h-[120px] p-2 border-t border-l border-gray-50 hover:bg-indigo-50/20 transition-all group">
               <span className={`text-sm font-bold inline-flex items-center justify-center w-7 h-7 rounded-full 
                 ${isToday ? 'bg-indigo-600 text-white shadow-md' : 
                   isSunday ? 'text-red-500' : 
