@@ -1,43 +1,46 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Layout, Input, Button } from "../components/common";
 import { supabase } from "../lib/supabaseClient";
+import { authSchema, AuthInput } from "../schema";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<AuthInput>({
+    resolver: zodResolver(authSchema),
+  });
+
+  const onLoginSubmit = async (data: AuthInput) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+
+    if (error) {
+      alert("로그인 실패: " + error.message);
+      return;
+    }
+
+    alert("로그인 성공!");
+    navigate("/main");
+  };
+
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: window.location.origin + "/main",
-        queryParams: {
-          access_type: "offline",
-          prompt: "select_account",
-        },
+        queryParams: { access_type: "offline", prompt: "select_account" },
       },
     });
-
-    if (error) {
-      alert("로그인 중 에러가 발생했습니다: " + error.message);
-    }
-  };
-
-  const handleLogin = () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      alert("올바른 이메일 형식을 입력해주세요.");
-      return;
-    }
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
-    if (!passwordRegex.test(password)) {
-      alert("비밀번호는 8자 이상이며, 대문자, 소문자, 숫자, 특수문자를 모두 포함해야 합니다.");
-      return;
-    }
-
-    navigate("/main");
+    if (error) alert("구글 로그인 에러: " + error.message);
   };
 
   return (
@@ -55,7 +58,7 @@ const LoginPage = () => {
       <div className="w-full flex flex-col gap-5">
         <Button
           variant="outline"
-          className="h-14 text-lg border-gray-200 flex items-center justify-center"
+          className="h-14 text-lg border-gray-200"
           onClick={handleGoogleLogin}
         >
           <img
@@ -64,10 +67,6 @@ const LoginPage = () => {
             className="w-5 h-5 mr-3"
           />
           Google로 시작하기
-        </Button>
-
-        <Button variant="outline" className="h-14 text-lg border-gray-200">
-          <span className="mr-2 text-yellow-600">💬</span> 카카오톡으로 시작하기
         </Button>
 
         <div className="relative py-4">
@@ -79,25 +78,29 @@ const LoginPage = () => {
           </div>
         </div>
 
-        <Input
-          label="이메일"
-          placeholder="example@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          label="비밀번호"
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <Button
-          className="h-14 text-lg mt-2 bg-black hover:bg-gray-800"
-          onClick={handleLogin}
-        >
-          <span className="mr-2">✉️</span> 로그인
-        </Button>
+        <form onSubmit={handleSubmit(onLoginSubmit)} className="flex flex-col gap-5">
+          <Input
+            label="이메일"
+            placeholder="example@email.com"
+            {...register("email")}
+            error={errors.email?.message}
+          />
+          <Input
+            label="비밀번호"
+            type="password"
+            placeholder="••••••••"
+            {...register("password")}
+            error={errors.password?.message}
+          />
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="h-14 text-lg mt-2 bg-black hover:bg-gray-800"
+          >
+            <span className="mr-2">✉️</span>
+            {isSubmitting ? "로그인 중..." : "로그인"}
+          </Button>
+        </form>
 
         <div className="text-center mt-4">
           <button
