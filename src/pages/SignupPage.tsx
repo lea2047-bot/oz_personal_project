@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Layout, Input, Button } from "../components/common";
 import { supabase } from "../lib/supabaseClient";
-import { authSchema, AuthInput } from "../schema";
+import { signupSchema, SignupInput } from "../schema";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -13,20 +13,12 @@ const SignupPage = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch, 
-  } = useForm<AuthInput & { confirmPassword: string }>({
-    resolver: zodResolver(authSchema),
+  } = useForm<SignupInput>({
+    resolver: zodResolver(signupSchema),
   });
 
-  const password = watch("password"); 
-
-  const onSignupSubmit = async (data: AuthInput & { confirmPassword: string }) => {
-    if (data.password !== data.confirmPassword) {
-      alert("비밀번호가 일치하지 않습니다.");
-      return;
-    }
-
-    const { error } = await supabase.auth.signUp({
+  const onSignupSubmit = async (data: SignupInput) => {
+    const { error, data: authData } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
@@ -40,8 +32,13 @@ const SignupPage = () => {
       return;
     }
 
-    alert("회원가입이 완료되었습니다! 로그인을 진행해주세요.");
-    navigate("/");
+    if (authData.user && !authData.session) {
+      alert("입력하신 이메일로 인증 링크가 발송되었습니다! 메일함을 확인하고 링크를 클릭해야 회원가입이 완료됩니다.");
+      navigate("/"); 
+    } else {
+      alert("회원가입이 완료되었습니다! 로그인을 진행해주세요.");
+      navigate("/");
+    }
   };
 
   return (
@@ -74,7 +71,7 @@ const SignupPage = () => {
             type="password"
             placeholder="••••••••"
             {...register("confirmPassword")}
-            error={password && watch("confirmPassword") !== password ? "비밀번호가 일치하지 않습니다." : ""}
+            error={errors.confirmPassword?.message}
           />
           
           <Button
