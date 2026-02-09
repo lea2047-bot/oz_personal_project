@@ -1,6 +1,5 @@
 export * from "./Button";
 export * from "./Input";
 export * from "./Card";
-export * from "./Checkbox";
 export * from "./Layout";
-export * from "./Modal";
+export * from "./Checkbox";
